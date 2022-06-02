@@ -22,15 +22,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val CELL_SIZE = 48.dp
 
+@ExperimentalMaterialApi
 @Composable
 fun Calendar(
     month: Month,
-    onDayClicked: (Day, Month) -> Unit,
-    modifier: Modifier
+    modifier: Modifier = Modifier,
+    onDayClick: (Day) -> Unit,
+    content: @Composable () -> Unit
 ) {
     Column(modifier) {
         val contentModifier = Modifier
@@ -39,17 +42,27 @@ fun Calendar(
 
         CalendarHeader(contentModifier)
 
-        val calNum = 9
+        val calNum = 3
 
-        Swiper(calNum = calNum)
+        Swiper(
+            modifier = contentModifier,
+            calNum = calNum
+        )
         {
+            val verticalSwiper =  rememberSwipeableState(0)
+
             for(i in 0 until calNum) {
-                itemsCalendarMonth(
-                    month = month,
-                    onDayClicked = onDayClicked
-                )
+                itemsCalendarMonth(month = month, verticalSwiper = verticalSwiper) {
+                    month.weeks.value.forEach { week ->
+                        itemsCalendarWeek {
+                            for (day in week)
+                                ItemDay(day, onDayClick = onDayClick)
+                        }
+                    }
+                }
             }
         }
+        content()
     }
 }
 
@@ -71,7 +84,7 @@ private fun Swiper(
     val hAnchors = pages.mapIndexed {i, it -> it.toFloat() to i}.toMap()
 
     val calX = (0 until calNum).map { it * maxW }.toMutableList()
-    var (preValue, preI, preX) = arrayOf(mid, 0, 0)
+    var (preX, preI) = arrayOf(0, mid)
 
     Layout(
         modifier = Modifier
@@ -80,38 +93,35 @@ private fun Swiper(
                 anchors = hAnchors,
                 thresholds = { _, _ -> FractionalThreshold(0.3f) },
                 orientation = Orientation.Horizontal
-            )
-            .background(Color.DarkGray),
+            ),
         content = content
     ) { measurables, constraints ->
 
         maxW = constraints.maxWidth
-
-        setH(constraints.maxWidth, constraints.maxHeight)
-
         val (width, height) = arrayOf(maxW * calNum, constraints.maxHeight)
         val key = horizonSwiper.offset.value
         var tmp = calX.map { it + key.roundToInt() - preX }.toMutableList()
 
-        hAnchors[key]?.let { currentValue ->
-            val gap = currentValue - preValue
-            var sI = preI - gap % calNum + calNum
+        val nowI = horizonSwiper.progress.from
+        val swiperW = calNum * maxW
+
+        if (nowI != preI) {
+            val plus = (nowI - preI) * maxW
+
             for (i in 0 until calNum) {
-                if (sI >= calNum) sI %= calNum
-                calX[sI] = i * maxW
-                sI ++
+                calX[i] += plus
+                if (calX[i] == swiperW) calX[i] = 0
+                if (calX[i] < 0) calX[i] = swiperW - maxW
             }
-            preI = sI
-            preX += gap * maxW
-            preValue = currentValue
-
             tmp = calX
+            preI = nowI
+            preX += plus
         }
-
-
         val placeables = measurables.map { measurable -> measurable.measure(constraints) }
-
-        layout(width, height){
+        var minHeight = placeables.reduce { a, b ->
+            if (a.height < b.height) a else b
+        }
+        layout(width, minHeight.height){
             placeables.forEachIndexed { i, placeable ->
                 placeable.placeRelative(x = tmp[i], y = 0)
             }
@@ -139,54 +149,85 @@ private fun CalendarHeader(modifier: Modifier) {
 @Composable
 private fun itemsCalendarMonth(
     month: Month,
-    onDayClicked: (Day, Month) -> Unit
+    verticalSwiper: SwipeableState<Int>,
+    content: @Composable () -> Unit
 ) {
 
-    val verticalSwiper =  rememberSwipeableState(1)
+    var minH by remember { mutableStateOf(1080) }
+    var maxH by remember { mutableStateOf(1081) }
+
     val vAnchors = mapOf(minH.toFloat() to 0, maxH.toFloat() to 1)
 
-    val itemH = verticalSwiper.offset.value / month.weeks.value.size
+    Layout(
+        modifier = Modifier
+            .swipeable(
+                state = verticalSwiper,
+                anchors = vAnchors,
+                thresholds = { _, _ -> FractionalThreshold(0.5f) },
+                orientation = Orientation.Vertical,
+                resistance = ResistanceConfig(0f, 0f, 0f)
+            )
+            .background(Color.LightGray),
+        content = content
+    ) { measurables, constraints ->
 
-    Box(modifier = Modifier.swipeable(
-        state = verticalSwiper,
-        anchors = vAnchors,
-        thresholds = { _, _ -> FractionalThreshold(0.5f) },
-        orientation = Orientation.Vertical,
-        resistance = ResistanceConfig(0f, 0f, 0f))
-        .background(Color.Green)
-    ) {
-        LazyColumn(modifier = Modifier.background(Color.Blue)) {
-            month.weeks.value.forEachIndexed { idx, week ->
-                item(key = "${month.year}/${month.month}/${idx + 1}") {
-                    Row(modifier = Modifier) {
-                        for (day in week) {
-                            ItemDay(day,onDayClicked = {item -> onDayClicked(item, month)})
-                        }
-                    }
-                }
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        minH = width
+        maxH = height
+
+        val value = verticalSwiper.offset.value.roundToInt()
+        val itemH = value / month.weeks.value.size
+
+        val placeables = measurables.map { measurable -> measurable.measure(Constraints(width, width, itemH, itemH)) }
+
+        layout(width, value){
+            var h = 0
+            placeables.forEachIndexed { i, placeable ->
+                placeable.placeRelative(x = 0, y = h)
+                h += itemH
             }
         }
-        Text(modifier = Modifier.size(verticalSwiper.offset.value.roundToInt().dp), text = "hi")
     }
+}
 
+@Composable
+private fun itemsCalendarWeek(
+    content: @Composable () -> Unit
+) {
+    Layout(
+        modifier = Modifier,
+        content = content
+    ) { measurables, constraints ->
+
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+
+        val itemW = width / 7
+
+        val placeables = measurables.map { measurable -> measurable.measure(Constraints(itemW, itemW, height, height)) }
+
+        layout(width, height){
+            var w = 0
+            placeables.forEachIndexed { i, placeable ->
+                placeable.placeRelative(x = w, y = 0)
+                w += itemW
+            }
+        }
+    }
 }
 
 @Composable
 private fun ItemDay(
     day: Day,
-    onDayClicked: (Day) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDayClick: (Day) -> Unit
 ) {
     val enabled = day.status != DayStatus.NonClickable
     Surface(
-        modifier = modifier
-            .size(CELL_SIZE)
-            .clickable(enabled) { if (day.status != DayStatus.NonClickable) onDayClicked(day) }
+        modifier = modifier.clickable(enabled) { onDayClick(day) }
     ) {
         Text(
-            modifier = Modifier
-                .size(CELL_SIZE)
-                .wrapContentSize(Alignment.Center),
             text = day.value,
             style = MaterialTheme.typography.body1.copy(color = Color.Black),
             color = day.status.color()
