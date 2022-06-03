@@ -44,7 +44,7 @@ data class Month(val calendar: Calendar) {
         cal.set(Calendar.MONTH, cal.get(Calendar.MONTH) - 1)
 
         // 달력에 표시될 이전달 시작, 끝 날짜
-        val preStart = cal.getActualMaximum(Calendar.DATE) - preDays
+        val preStart = cal.getActualMaximum(Calendar.DATE) - preDays + 1
         val preLast = preStart + preDays - 1
 
         for (day in preStart..preLast) add(Day(day.toString(), DayStatus.NonClickable))

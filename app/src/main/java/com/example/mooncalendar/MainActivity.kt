@@ -26,12 +26,14 @@ class MainActivity : ComponentActivity() {
             val calendar = Calendar.getInstance()
             calendar.time = Date()
 
+            val mC = MoonCalendar(calendar)
+
             Column {
 
                 var clicked by remember { mutableStateOf(" ") }
 
                 CalendarTheme {
-                    Calendar(month = Month(calendar), onDayClick = {day -> clicked = day.value} ) {
+                    mC.DrawCalendar(onDayClick = {day -> clicked = day.value} ) {
 
                         Column {
                             Text("일정")
