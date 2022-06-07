@@ -14,7 +14,7 @@ enum class DayOfWeek {
 }
 
 enum class DayStatus {
-    Clickable, NonClickable, Today,
+    Clickable, NonClickable, Clicked, Today, Sunday, Saturday
 }
 
 class Day(val value: String, status: DayStatus) {
@@ -22,14 +22,25 @@ class Day(val value: String, status: DayStatus) {
 }
 data class Month(val calendar: Calendar) {
 
+    companion object {
+        private val todayCalendar = Calendar.getInstance().let {
+            it.time = Date()
+            it
+        }
+
+        val todayMonth = todayCalendar.get(Calendar.MONTH)
+        val todayYear = todayCalendar.get(Calendar.YEAR)
+        val todayValue = todayCalendar.get(Calendar.DAY_OF_MONTH)
+        lateinit var today: Day
+    }
+
     val year = calendar.get(Calendar.YEAR)
     val month = calendar.get(Calendar.MONTH)
+    var weekSize = 6
 
     private val days = mutableListOf<Day>().apply {
 
         val cal = calendar.clone() as Calendar  // calendar를 사용하면 중간에 날짜가 바뀌기 때문에 클릭할때마다 달력이 변함
-
-        val today = cal.get(Calendar.DAY_OF_MONTH)
 
         // 이번달 일 수
         val curDays = cal.getActualMaximum(Calendar.DATE)
@@ -51,10 +62,24 @@ data class Month(val calendar: Calendar) {
         for (day in 1..curDays)        add(Day(day.toString(), DayStatus.Clickable))
         for (day in 1..postLast)       add(Day(day.toString(), DayStatus.NonClickable))
 
-        get(preDays + today - 1).status = DayStatus.Today
+        if(size == 35) for(i in 0..6) {
+            weekSize = 5
+            add(Day("", DayStatus.NonClickable))
+        }
+
+        if (year == todayYear && month == todayMonth) {
+            val tmp = get(preDays + todayValue - 1)
+            get(preDays + todayValue - 1).status = DayStatus.Today
+            today = tmp
+        }
+
         cal.clear()
 
     }.toList()
 
-    val weeks = lazy { days.chunked(7) }
+    val weeks = lazy { days.chunked(7).map { dayList ->
+        if (dayList[0].status == DayStatus.Clickable) dayList[0].status = DayStatus.Sunday
+        if (dayList[6].status == DayStatus.Clickable) dayList[6].status = DayStatus.Saturday
+        dayList
+    } }
 }

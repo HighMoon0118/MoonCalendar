@@ -31,9 +31,12 @@ class MainActivity : ComponentActivity() {
             Column {
 
                 var clicked by remember { mutableStateOf(" ") }
+                mC.clickedDay.observe(this@MainActivity) { day ->
+                    clicked = day.value
+                }
 
                 CalendarTheme {
-                    mC.DrawCalendar(onDayClick = {day -> clicked = day.value} ) {
+                    mC.DrawCalendar {
 
                         Column {
                             Text("일정")
