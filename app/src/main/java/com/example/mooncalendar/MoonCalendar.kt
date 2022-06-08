@@ -1,6 +1,7 @@
 package com.example.mooncalendar
 
 import android.util.Log
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -86,21 +87,21 @@ class MoonCalendar(private val calendar: Calendar) {
                 itemsCalendarMonth(month = { monthList[left] }, verticalSwiper = verticalSwiper) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( { monthList[left].weeks.value[wI][dI] })
+                            ItemDay(dI, { monthList[left].weeks.value[wI][dI] })
                         }
                     }
                 }
                 itemsCalendarMonth(month = { monthList[mid] }, verticalSwiper = verticalSwiper) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( { monthList[mid].weeks.value[wI][dI] })
+                            ItemDay( dI, { monthList[mid].weeks.value[wI][dI] })
                         }
                     }
                 }
                 itemsCalendarMonth(month = { monthList[right] }, verticalSwiper = verticalSwiper) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( { monthList[right].weeks.value[wI][dI] })
+                            ItemDay( dI, { monthList[right].weeks.value[wI][dI] })
                         }
                     }
                 }
@@ -253,6 +254,7 @@ class MoonCalendar(private val calendar: Calendar) {
                     orientation = Orientation.Vertical,
                     resistance = ResistanceConfig(0f, 0f, 0f)
                 )
+                .animateContentSize()
                 .background(Color.LightGray),
             content = content
         ) { measurables, constraints ->
@@ -263,7 +265,7 @@ class MoonCalendar(private val calendar: Calendar) {
             midH = width
             maxH = height
 
-            val value = verticalSwiper.offset.value.roundToInt()
+            val value = verticalSwiper.offset.value.toInt()
 
             val itemH = value / month().weekSize
             val placeables = measurables.map { measurable -> measurable.measure(Constraints(width, width, itemH, itemH)) }
@@ -308,17 +310,18 @@ class MoonCalendar(private val calendar: Calendar) {
 
     @Composable
     private fun ItemDay(
+        idx: Int,
         day: () -> Day,
         modifier: Modifier = Modifier
     ) {
         Surface(
-            modifier = modifier.clickable {
-                if (day().status != DayStatus.NonClickable) {   // 람다함수를 사용함으로써 재구성을 피함
-                    val tmpDayStatus = if (clickedDay.value == Month.today) DayStatus.Today else DayStatus.Clickable
+            modifier = modifier.clickable {   // 람다함수를 사용함으로써 재구성을 피함
+                Log.d("ㅇㅇㅇ", "$idx")
+                if (day().status != DayStatus.NonClickable) {
+                    clickedDay.value!!.status = if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
 
-                    clickedDay.value!!.status = tmpDayStatus
+                    day().status = DayStatus.Clicked
                     clickedDay.value = day()
-                    clickedDay.value!!.status = DayStatus.Clicked
                 }
             }
         ) {
@@ -327,22 +330,25 @@ class MoonCalendar(private val calendar: Calendar) {
                 border = BorderStroke(1.dp, clickedColor)
             ) {
                 Text(
+                    modifier = Modifier.animateContentSize { initialValue, targetValue ->  },
                     text = day().value,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.body1.copy(color = Color.Black),
-                    color = day().status.color()
+                    color = when(day().status){
+                        DayStatus.Today -> Color.Green
+                        DayStatus.Clicked -> Color.Magenta
+                        DayStatus.NonClickable -> Color.LightGray
+                        else -> day().day.color()
+                    }
                 )
             }
         }
     }
 
-    private fun DayStatus.color(): Color = when (this) {
-        DayStatus.Today -> Color.Green
-        DayStatus.Clickable -> Color.Black
-        DayStatus.Clicked -> Color.Magenta
-        DayStatus.Sunday -> Color.Red
-        DayStatus.Saturday -> Color.Blue
-        else -> Color.LightGray
+    private fun DayOfWeek.color(): Color = when (this) {
+        DayOfWeek.Sunday -> Color.Red
+        DayOfWeek.Saturday -> Color.Blue
+        else -> Color.Black
     }
 
     private fun setCalendarData() {

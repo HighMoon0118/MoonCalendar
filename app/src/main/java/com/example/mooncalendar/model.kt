@@ -14,11 +14,12 @@ enum class DayOfWeek {
 }
 
 enum class DayStatus {
-    Clickable, NonClickable, Clicked, Today, Sunday, Saturday
+    Clickable, NonClickable, Clicked, Today
 }
 
 class Day(val value: String, status: DayStatus) {
     var status by mutableStateOf(status)
+    lateinit var day: DayOfWeek
 }
 data class Month(val calendar: Calendar) {
 
@@ -71,6 +72,7 @@ data class Month(val calendar: Calendar) {
             val tmp = get(preDays + todayValue - 1)
             get(preDays + todayValue - 1).status = DayStatus.Today
             today = tmp
+            tmp.status = DayStatus.Clicked
         }
 
         cal.clear()
@@ -78,8 +80,7 @@ data class Month(val calendar: Calendar) {
     }.toList()
 
     val weeks = lazy { days.chunked(7).map { dayList ->
-        if (dayList[0].status == DayStatus.Clickable) dayList[0].status = DayStatus.Sunday
-        if (dayList[6].status == DayStatus.Clickable) dayList[6].status = DayStatus.Saturday
+        for (i in 0..6) dayList[i].day = DayOfWeek.values()[i]
         dayList
     } }
 }
