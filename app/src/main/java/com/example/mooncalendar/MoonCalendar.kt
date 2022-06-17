@@ -2,14 +2,18 @@ package com.example.mooncalendar
 
 import android.util.Log
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.*
+import androidx.compose.material.ripple.LocalRippleTheme
+import androidx.compose.material.ripple.RippleTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,41 +71,47 @@ class MoonCalendar(private val calendar: Calendar) {
         var mid by remember { mutableStateOf(CALENDAR_MID)}
         var right by remember { mutableStateOf(CALENDAR_MID + 1)}
 
+        var horizonState by remember { mutableStateOf(CALENDAR_MID)}
+
         Column(modifier) {
 
             val contentModifier = Modifier
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.CenterHorizontally)
 
+            val horizonSwiper = rememberSwipeableState(CALENDAR_MID)
+//            LaunchedEffect(horizonState) {
+//                horizonSwiper.animateTo(horizonState)
+//            }
+            val verticalSwiper =  rememberSwipeableState(1)
+
             CalendarHeader(contentModifier, currentMonthIdx = { currentMonthIdx + 1})
             Swiper(
-                modifier = contentModifier,
+                modifier = contentModifier.animateContentSize(),
+                horizonSwiper = { horizonSwiper },
                 idxList = { listOf(left, mid, right) },
                 setIdxList = {l,m,r -> left=l; mid=m; right=r},
-                currentMonthIdx = { currentMonthIdx },
                 setCurrentMonthIdx = {idx -> currentMonthIdx = idx}
             ) {
 
-                val verticalSwiper =  rememberSwipeableState(1)
-
-                itemsCalendarMonth(month = { monthList[left] }, verticalSwiper = verticalSwiper) {
+                itemsCalendarMonth(month = { monthList[left] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay(dI, { monthList[left].weeks.value[wI][dI] })
+                            ItemDay(dI, { monthList[left].weeks.value[wI][dI] }, {i -> horizonState += i})
                         }
                     }
                 }
-                itemsCalendarMonth(month = { monthList[mid] }, verticalSwiper = verticalSwiper) {
+                itemsCalendarMonth(month = { monthList[mid] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( dI, { monthList[mid].weeks.value[wI][dI] })
+                            ItemDay( dI, { monthList[mid].weeks.value[wI][dI] }, {i -> horizonState += i})
                         }
                     }
                 }
-                itemsCalendarMonth(month = { monthList[right] }, verticalSwiper = verticalSwiper) {
+                itemsCalendarMonth(month = { monthList[right] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( dI, { monthList[right].weeks.value[wI][dI] })
+                            ItemDay( dI, { monthList[right].weeks.value[wI][dI] }, {i -> horizonState += i})
                         }
                     }
                 }
@@ -149,14 +159,13 @@ class MoonCalendar(private val calendar: Calendar) {
     @Composable
     private fun Swiper(
         modifier: Modifier = Modifier,
+        horizonSwiper: () -> SwipeableState<Int>,
         idxList: () -> List<Int>,
         setIdxList: (Int, Int, Int) -> Unit,
-        currentMonthIdx: () -> Int,
         setCurrentMonthIdx: (Int) -> Unit,
-        content: @Composable () -> Unit
+        content: @Composable () -> Unit,
     ) {
 
-        val horizonSwiper = rememberSwipeableState(CALENDAR_MID)
         var maxW by remember { mutableStateOf(1080) }
         val offset = - maxW * CALENDAR_MID
 
@@ -169,9 +178,9 @@ class MoonCalendar(private val calendar: Calendar) {
         Layout(
             modifier = Modifier
                 .swipeable(
-                    state = horizonSwiper,
+                    state = horizonSwiper(),
                     anchors = hAnchors,
-                    thresholds = { _, _ -> FractionalThreshold(0.2f) },
+                    thresholds = { _, _ -> FractionalThreshold(0.1f) },
                     orientation = Orientation.Horizontal,
                     velocityThreshold = Integer.MAX_VALUE.dp
                 ),
@@ -180,14 +189,14 @@ class MoonCalendar(private val calendar: Calendar) {
 
             maxW = constraints.maxWidth
             val width = maxW * CALENDAR_NUM
-            val key = horizonSwiper.offset.value
+            val key = horizonSwiper().offset.value
             val moveX = key.roundToInt() - preX
             var tmp = calX.map { it + moveX }.toMutableList()
 
-            var nowI = horizonSwiper.progress.from
+            var nowI = horizonSwiper().progress.from
             val swiperW = CALENDAR_NUM * maxW
 
-            val to = horizonSwiper.progress.to
+            val to = horizonSwiper().progress.to
 
             if (abs(moveX) > maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - to)
             else if (abs(moveX) < maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - nowI)
@@ -236,7 +245,7 @@ class MoonCalendar(private val calendar: Calendar) {
     @Composable
     private fun itemsCalendarMonth(
         month: () -> Month,
-        verticalSwiper: SwipeableState<Int>,
+        verticalSwiper: () -> SwipeableState<Int>,
         content: @Composable () -> Unit
     ) {
         var minH by remember { mutableStateOf(1079) }
@@ -248,14 +257,12 @@ class MoonCalendar(private val calendar: Calendar) {
         Layout(
             modifier = Modifier
                 .swipeable(
-                    state = verticalSwiper,
+                    state = verticalSwiper(),
                     anchors = vAnchors,
                     thresholds = { _, _ -> FractionalThreshold(0.5f) },
                     orientation = Orientation.Vertical,
                     resistance = ResistanceConfig(0f, 0f, 0f)
-                )
-                .animateContentSize()
-                .background(Color.LightGray),
+                ),
             content = content
         ) { measurables, constraints ->
 
@@ -265,10 +272,11 @@ class MoonCalendar(private val calendar: Calendar) {
             midH = width
             maxH = height
 
-            val value = verticalSwiper.offset.value.toInt()
+            val value = verticalSwiper().offset.value.roundToInt()
 
             val itemH = value / month().weekSize
-            val placeables = measurables.map { measurable -> measurable.measure(Constraints(width, width, itemH, itemH)) }
+
+            val placeables = measurables.map { measurable -> measurable.measure(Constraints(width, width, 0, itemH)) }
 
 
             layout(width, value){
@@ -296,7 +304,7 @@ class MoonCalendar(private val calendar: Calendar) {
 
             val itemW = width / 7
 
-            val placeables = measurables.map { measurable -> measurable.measure(Constraints(itemW, itemW, height, height)) }
+            val placeables = measurables.map { measurable -> measurable.measure(Constraints(itemW, itemW, 0, height)) }
 
             layout(width, height){
                 var w = 0
@@ -312,25 +320,30 @@ class MoonCalendar(private val calendar: Calendar) {
     private fun ItemDay(
         idx: Int,
         day: () -> Day,
+        plusHorizonState: (Int) -> Unit,
         modifier: Modifier = Modifier
     ) {
-        Surface(
-            modifier = modifier.clickable {   // 람다함수를 사용함으로써 재구성을 피함
-                Log.d("ㅇㅇㅇ", "$idx")
-                if (day().status != DayStatus.NonClickable) {
-                    clickedDay.value!!.status = if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
 
-                    day().status = DayStatus.Clicked
-                    clickedDay.value = day()
+        val clickedColor = if (day().status == DayStatus.Clicked) Color.Gray else Color.White
+
+        Card(
+            modifier = modifier
+                .clickable {   // 람다함수를 사용함으로써 재구성을 피함
+                    if (day().status != DayStatus.NonClickable) {
+                        clickedDay.value!!.status =
+                            if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
+
+                        day().status = DayStatus.Clicked
+                        clickedDay.value = day()
+                    } else {
+                        plusHorizonState(1)
+                    }
                 }
-            }
+                .fillMaxHeight(),
+            border = BorderStroke(1.dp, clickedColor)
         ) {
-            val clickedColor = if (day().status == DayStatus.Clicked) Color.Gray else Color.White
-            Card(
-                border = BorderStroke(1.dp, clickedColor)
-            ) {
+            Column {
                 Text(
-                    modifier = Modifier.animateContentSize { initialValue, targetValue ->  },
                     text = day().value,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.body1.copy(color = Color.Black),
