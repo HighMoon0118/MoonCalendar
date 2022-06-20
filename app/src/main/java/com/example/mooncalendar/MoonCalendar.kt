@@ -193,12 +193,12 @@ class MoonCalendar(private val calendar: Calendar) {
             val moveX = key.roundToInt() - preX
             var tmp = calX.map { it + moveX }.toMutableList()
 
-            var nowI = horizonSwiper().progress.from
+            val nowI = horizonSwiper().progress.from
             val swiperW = CALENDAR_NUM * maxW
 
-            val to = horizonSwiper().progress.to
+            val postI = horizonSwiper().progress.to
 
-            if (abs(moveX) > maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - to)
+            if (abs(moveX) > maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - postI)
             else if (abs(moveX) < maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - nowI)
 
             if (nowI != preI) {
@@ -230,7 +230,7 @@ class MoonCalendar(private val calendar: Calendar) {
             }
 
             val placeables = measurables.map { measurable -> measurable.measure(constraints) }
-            var minHeight = placeables.reduce { a, b ->
+            val minHeight = placeables.reduce { a, b ->
                 if (a.height < b.height) a else b
             }
             layout(width, minHeight.height){
