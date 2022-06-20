@@ -17,8 +17,8 @@ enum class DayStatus {
     Clickable, NonClickable, Clicked, Today
 }
 
-class Day(val value: String, status: DayStatus) {
-    var status by mutableStateOf(status)
+data class Day(val value: String, var dayStatus: DayStatus, val gap: Int) {
+    var status by mutableStateOf(dayStatus)
     lateinit var day: DayOfWeek
 }
 data class Month(val calendar: Calendar) {
@@ -59,13 +59,13 @@ data class Month(val calendar: Calendar) {
         val preStart = cal.getActualMaximum(Calendar.DATE) - preDays + 1
         val preLast = preStart + preDays - 1
 
-        for (day in preStart..preLast) add(Day(day.toString(), DayStatus.NonClickable))
-        for (day in 1..curDays)        add(Day(day.toString(), DayStatus.Clickable))
-        for (day in 1..postLast)       add(Day(day.toString(), DayStatus.NonClickable))
+        for (day in preStart..preLast) add(Day(day.toString(), DayStatus.NonClickable, -1))
+        for (day in 1..curDays)        add(Day(day.toString(), DayStatus.Clickable, 0) )
+        for (day in 1..postLast)       add(Day(day.toString(), DayStatus.NonClickable, 1))
 
         if(size == 35) for(i in 0..6) {
             weekSize = 5
-            add(Day("", DayStatus.NonClickable))
+            add(Day("", DayStatus.NonClickable, 1))
         }
 
         if (year == todayYear && month == todayMonth) {

@@ -34,13 +34,15 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-class MoonCalendar(private val calendar: Calendar) {
+class MoonCalendar(private var calendar: Calendar) {
 
     private val CELL_SIZE = 48.dp
     private val CALENDAR_NUM = 3
@@ -71,47 +73,53 @@ class MoonCalendar(private val calendar: Calendar) {
         var mid by remember { mutableStateOf(CALENDAR_MID)}
         var right by remember { mutableStateOf(CALENDAR_MID + 1)}
 
-        var horizonState by remember { mutableStateOf(CALENDAR_MID)}
+        var idxList  by remember { mutableStateOf(listOf(left, mid, right)) }
 
+        val coroutineScope = rememberCoroutineScope()
+        val horizonSwiper = rememberSwipeableState(CALENDAR_MID)
         Column(modifier) {
 
             val contentModifier = Modifier
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.CenterHorizontally)
 
-            val horizonSwiper = rememberSwipeableState(CALENDAR_MID)
-//            LaunchedEffect(horizonState) {
-//                horizonSwiper.animateTo(horizonState)
-//            }
+
             val verticalSwiper =  rememberSwipeableState(1)
 
-            CalendarHeader(contentModifier, currentMonthIdx = { currentMonthIdx + 1})
+//            val moveCalendar = {gap: Int ->
+//                coroutineScope.launch {
+//                    horizonSwiper.animateTo(horizonSwiper.currentValue + gap)  // animateTo 든 snapTo든 처음 실행할 때 swiper를 재구성함(다시만듦)
+//                }
+//            } 이상해,,,
+
+            CalendarHeader(contentModifier, monthList = { monthList }, currentMonthIdx = { currentMonthIdx + 1})
+
             Swiper(
                 modifier = contentModifier.animateContentSize(),
                 horizonSwiper = { horizonSwiper },
-                idxList = { listOf(left, mid, right) },
-                setIdxList = {l,m,r -> left=l; mid=m; right=r},
+                idxList = { idxList },
+                setIdxList = {l,m,r -> left=l; mid=m; right=r; idxList = listOf(l, m, r)},
                 setCurrentMonthIdx = {idx -> currentMonthIdx = idx}
             ) {
 
                 itemsCalendarMonth(month = { monthList[left] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay(dI, { monthList[left].weeks.value[wI][dI] }, {i -> horizonState += i})
+                            ItemDay(dI, { monthList[left].weeks.value[wI][dI] }, {})
                         }
                     }
                 }
                 itemsCalendarMonth(month = { monthList[mid] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( dI, { monthList[mid].weeks.value[wI][dI] }, {i -> horizonState += i})
+                            ItemDay( dI, { monthList[mid].weeks.value[wI][dI] }, {})
                         }
                     }
                 }
                 itemsCalendarMonth(month = { monthList[right] }, verticalSwiper = { verticalSwiper }) {
                     for(wI in 0..5) itemsCalendarWeek {
                         for (dI in 0..6) {
-                            ItemDay( dI, { monthList[right].weeks.value[wI][dI] }, {i -> horizonState += i})
+                            ItemDay( dI, { monthList[right].weeks.value[wI][dI] }, {})
                         }
                     }
                 }
@@ -125,10 +133,11 @@ class MoonCalendar(private val calendar: Calendar) {
     @Composable
     private fun CalendarHeader(
         modifier: Modifier,
+        monthList: () -> ArrayList<Month>,
         currentMonthIdx: () -> Int
     )
     {
-        val month = monthList[currentMonthIdx()]
+        val month = monthList()[currentMonthIdx()]
 
         Column() {
             Row(modifier = modifier.padding(20.dp)) {
@@ -175,6 +184,9 @@ class MoonCalendar(private val calendar: Calendar) {
         val calX = (0 until CALENDAR_NUM).map { it * maxW }.toMutableList()
         var (preX, preI) = arrayOf(0, CALENDAR_MID)
 
+        Log.d("ggggggggggg,", "hhhhhhhhhhhhh")
+        var mid = 1
+
         Layout(
             modifier = Modifier
                 .swipeable(
@@ -189,8 +201,8 @@ class MoonCalendar(private val calendar: Calendar) {
 
             maxW = constraints.maxWidth
             val width = maxW * CALENDAR_NUM
-            val key = horizonSwiper().offset.value
-            val moveX = key.roundToInt() - preX
+
+            val moveX = horizonSwiper().offset.value.roundToInt() - preX
             var tmp = calX.map { it + moveX }.toMutableList()
 
             val nowI = horizonSwiper().progress.from
@@ -202,25 +214,30 @@ class MoonCalendar(private val calendar: Calendar) {
             else if (abs(moveX) < maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - nowI)
 
             if (nowI != preI) {
-                val gap = nowI - preI
+
+                var gap = nowI - preI
                 val plus = gap * maxW
 
                 for (i in 0 until CALENDAR_NUM) {
                     calX[i] += plus
-                    if (calX[i] == swiperW) {  // 오른쪽으로 이동
-                        when(i) {
-                            0 -> setIdxList(idxList()[1] - 1, idxList()[1], idxList()[2])
-                            1 -> setIdxList(idxList()[0], idxList()[2] - 1, idxList()[2])
-                            else -> setIdxList(idxList()[0], idxList()[1], idxList()[0] - 1)
+                    if (calX[i] == swiperW) {  // 오른쪽으로 이동 (전 달)
+                        when(mid) {
+                            2 -> setIdxList(idxList()[1] - 1, idxList()[1], idxList()[2])
+                            0 -> setIdxList(idxList()[0], idxList()[2] - 1, idxList()[2])
+                            1 -> setIdxList(idxList()[0], idxList()[1], idxList()[0] - 1)
                         }
+                        mid += 1
+                        if (mid > 2) mid -= 3
                         calX[i] = 0
                     }
-                    if (calX[i] < 0) {  // 왼쪽으로 이동
-                        when(i) {
-                            0 -> setIdxList(idxList()[2] + 1, idxList()[1], idxList()[2])
-                            1 -> setIdxList(idxList()[0], idxList()[0] + 1, idxList()[2])
-                            else -> setIdxList(idxList()[0], idxList()[1], idxList()[1] + 1)
+                    if (calX[i] < 0) {  // 왼쪽으로 이동 (다음 달)
+                        when(mid) {
+                            1 -> setIdxList(idxList()[2] + 1, idxList()[1], idxList()[2])
+                            2 -> setIdxList(idxList()[0], idxList()[0] + 1, idxList()[2])
+                            0 -> setIdxList(idxList()[0], idxList()[1], idxList()[1] + 1)
                         }
+                        mid -= 1
+                        if (mid < 0) mid += 3
                         calX[i] = swiperW - maxW
                     }
                 }
@@ -320,10 +337,9 @@ class MoonCalendar(private val calendar: Calendar) {
     private fun ItemDay(
         idx: Int,
         day: () -> Day,
-        plusHorizonState: (Int) -> Unit,
+        moveCalendar: (Int) -> Unit,
         modifier: Modifier = Modifier
     ) {
-
         val clickedColor = if (day().status == DayStatus.Clicked) Color.Gray else Color.White
 
         Card(
@@ -336,7 +352,11 @@ class MoonCalendar(private val calendar: Calendar) {
                         day().status = DayStatus.Clicked
                         clickedDay.value = day()
                     } else {
-                        plusHorizonState(1)
+                        if (day().gap == -1) {
+                            moveCalendar(1)
+                        } else if (day().gap == 1){
+                            moveCalendar(-1)
+                        }
                     }
                 }
                 .fillMaxHeight(),
@@ -364,7 +384,10 @@ class MoonCalendar(private val calendar: Calendar) {
         else -> Color.Black
     }
 
-    private fun setCalendarData() {
+    private fun setCalendarData(date: Date = calendar.time) : ArrayList<Month>{
+        calendar = Calendar.getInstance()
+        calendar.time = date
+
         val tmpList = ArrayList<Month>()
         var tmpCal = calendar.clone() as Calendar
 
@@ -377,5 +400,6 @@ class MoonCalendar(private val calendar: Calendar) {
         }
 
         monthList = tmpList
+        return monthList
     }
 }
