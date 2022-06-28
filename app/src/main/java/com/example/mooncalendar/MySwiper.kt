@@ -1,5 +1,6 @@
 package com.example.mooncalendar
 
+import android.util.Log
 import androidx.compose.foundation.gestures.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ fun Modifier.MySwiper(
     pointerInput(Unit) {
 
         val vAnchor = vAnchor.value
+        val width = vAnchor[1]
         var currentHState = 0
         var currentVState = 1
 
@@ -30,18 +32,27 @@ fun Modifier.MySwiper(
                 val velocityTracker = VelocityTracker()
                 var hDist = 0f
 
+
                 awaitPointerEventScope {
 
+                    // use (requireUnconsumed = false) instead of true to make sure we get even a consumed even
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    Log.d("wwwwwwww", "${hState.value}")
+                    val gap: Int = (hState.value - currentHState).toInt() / width.toInt()
+                    if (abs(gap) >= 1) currentHState += gap * width.toInt()
 
-
-                    val down = awaitFirstDown()
+                    var moveX = 0f
+                    var moveY = 0f
 
                     var change = awaitDragOrCancellation(down.id)?.apply {
+                        moveX = abs(down.position.x - position.x)
+                        moveY = abs(down.position.y - position.y)
+                        Log.d("ㅇㅇㅇㅇㅇㅇㅇ", "$moveX $moveY")
 
-                        if (abs(down.position.x - position.x) < abs(down.position.y - position.y) ) {
-                            isVertical = true
-                        }
+                        if (moveX < moveY ) isVertical = true
                     }
+
+                    if (moveX < 3 && moveY < 3) change = null
 
                     if (change != null && change.pressed) {
 
@@ -65,9 +76,6 @@ fun Modifier.MySwiper(
                                 }
                             }
                         } else {
-
-                            if (hState.value - currentHState >= 1080) currentHState += 1080
-                            else if (hState.value - currentHState <= -1080) currentHState -= 1080
 
                             velocityTracker.addPosition(
                                 change.uptimeMillis,
@@ -109,14 +117,13 @@ fun Modifier.MySwiper(
 
                         vState.value = vAnchor[currentVState]
                     } else {
-                        val width = 1080
 
                         val line = width * thresholds
 
                         if (hDist < -line) {
-                            hState.value = currentHState - 1080f
+                            hState.value = currentHState - width
                         } else if (hDist > line) {
-                            hState.value = currentHState + 1080f
+                            hState.value = currentHState + width
                         } else {
                             hState.value = currentHState.toFloat()
                         }
