@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import kotlinx.coroutines.*
@@ -29,40 +30,38 @@ fun Modifier.MySwiper(
             while (true) {
 
                 var isVertical = false
-                val velocityTracker = VelocityTracker()
+                var change: PointerInputChange? = null
                 var hDist = 0f
-
 
                 awaitPointerEventScope {
 
                     // use (requireUnconsumed = false) instead of true to make sure we get even a consumed even
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    Log.d("wwwwwwww", "${hState.value}")
                     val gap: Int = (hState.value - currentHState).toInt() / width.toInt()
                     if (abs(gap) >= 1) currentHState += gap * width.toInt()
 
                     var moveX = 0f
                     var moveY = 0f
 
-                    var change = awaitDragOrCancellation(down.id)?.apply {
+                    change = awaitDragOrCancellation(down.id)?.apply {
                         moveX = abs(down.position.x - position.x)
                         moveY = abs(down.position.y - position.y)
-                        Log.d("ㅇㅇㅇㅇㅇㅇㅇ", "$moveX $moveY")
-
-                        if (moveX < moveY ) isVertical = true
                     }
 
-                    if (moveX < 3 && moveY < 3) change = null
+                    if (moveX + moveY < 3) change = null
 
-                    if (change != null && change.pressed) {
+                    change?.let {
+                        x
+                    }
+
+                    if (change != null && change!!.pressed) {
+
+                        if (moveX < moveY ) isVertical = true
 
                         if (isVertical) {
 
-                            verticalDrag(change.id) { change ->
-                                velocityTracker.addPosition(
-                                    change.uptimeMillis,
-                                    change.position
-                                )
+                            verticalDrag(change!!.id) { change ->
+
                                 val a = change.previousPosition.y
                                 val b = change.position.y
 
@@ -76,16 +75,7 @@ fun Modifier.MySwiper(
                                 }
                             }
                         } else {
-
-                            velocityTracker.addPosition(
-                                change.uptimeMillis,
-                                change.position
-                            )
-                            horizontalDrag(change.id) { change ->
-                                velocityTracker.addPosition(
-                                    change.uptimeMillis,
-                                    change.position
-                                )
+                            horizontalDrag(change!!.id) { change ->
 
                                 val a = change.position.x
 
@@ -99,33 +89,33 @@ fun Modifier.MySwiper(
                     }
                 }
 
+                if (change != null) {
+                    launch {
+                        if (isVertical) {
+                            val currentY = vState.value
 
-                launch {
-                    if (isVertical) {
-                        val currentY = vState.value
+                            if (currentVState == 0) {
+                                if (currentY > vAnchor[1]) currentVState = 2
+                                else if (currentY > vAnchor[0]) currentVState = 1
+                            } else if (currentVState == 1) {
+                                if (currentY < vAnchor[1]) currentVState = 0
+                                else if (currentY > vAnchor[1]) currentVState = 2
+                            } else if (currentVState == 2) {
+                                if (currentY < vAnchor[1]) currentVState = 0
+                                else if (currentY < vAnchor[2]) currentVState = 1
+                            }
 
-                        if (currentVState == 0) {
-                            if (currentY > vAnchor[1]) currentVState = 2
-                            else if (currentY > vAnchor[0]) currentVState = 1
-                        } else if (currentVState == 1) {
-                            if (currentY < vAnchor[1]) currentVState = 0
-                            else if (currentY > vAnchor[1]) currentVState = 2
-                        } else if (currentVState == 2) {
-                            if (currentY < vAnchor[1]) currentVState = 0
-                            else if (currentY < vAnchor[2]) currentVState = 1
-                        }
-
-                        vState.value = vAnchor[currentVState]
-                    } else {
-
-                        val line = width * thresholds
-
-                        if (hDist < -line) {
-                            hState.value = currentHState - width
-                        } else if (hDist > line) {
-                            hState.value = currentHState + width
+                            vState.value = vAnchor[currentVState]
                         } else {
-                            hState.value = currentHState.toFloat()
+                            val line = width * thresholds
+
+                            if (hDist < -line) {
+                                hState.value = currentHState - width
+                            } else if (hDist > line) {
+                                hState.value = currentHState + width
+                            } else {
+                                hState.value = currentHState.toFloat()
+                            }
                         }
                     }
                 }

@@ -75,8 +75,10 @@ class MoonCalendar(private var calendar: Calendar) {
 //            } 이상해,,,
 
             val moveCalendar = {plus: Int ->
+                Log.d("zzzzz", "${hState.value}")
                 hState.value += plus * vAnchor.value[1]
-                Log.d("rrrrrrrrr", "${hState.value}")
+                Log.d("zzzzz", "${hState.value}")
+
                 Unit
             }
 
@@ -110,9 +112,8 @@ class MoonCalendar(private var calendar: Calendar) {
                         }
                     }
                 }
-
+                content()
             }
-            content()
         }
     }
 
@@ -265,7 +266,7 @@ class MoonCalendar(private var calendar: Calendar) {
         val vAnimate = animateFloatAsState(
             targetValue = vState.value,
             animationSpec = tween(
-                durationMillis = if (vState.value in vAnchor.value) 300 else 0,
+                durationMillis = if (vState.value in vAnchor.value) 250 else 0,
                 easing = LinearOutSlowInEasing
             ),
         )
@@ -273,7 +274,7 @@ class MoonCalendar(private var calendar: Calendar) {
         val hAnimate = animateFloatAsState(
             targetValue = hState.value,
             animationSpec = tween(
-                durationMillis = 400,
+                durationMillis = 300,
                 easing = LinearOutSlowInEasing
             ),
         )
@@ -299,7 +300,6 @@ class MoonCalendar(private var calendar: Calendar) {
             val itemH = constraints.maxHeight
 
             size = itemW
-            Log.d("zzzzzzzzz", "${hState.value}")
 
             if (vAnchor.value[1].toInt() != itemW) {
                 vAnchor.value = listOf((itemW / 2).toFloat(), itemW.toFloat(), itemH.toFloat())
@@ -339,10 +339,9 @@ class MoonCalendar(private var calendar: Calendar) {
                 measurable.measure(Constraints(itemW, itemW, 0, h))
             }
 
-            layout(w, h){
-                items.forEachIndexed { i, item ->
-                    item.placeRelative(x = tmp[i], y = 0)
-                }
+            layout(w, itemH){
+                for(i in 0 until 3) items[i].placeRelative(x = tmp[i], y = 0)
+                items[3].placeRelative(x = itemW, y = h)
             }
         }
     }
