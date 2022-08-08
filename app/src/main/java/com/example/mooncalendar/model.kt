@@ -39,7 +39,7 @@ data class Month(val calendar: Calendar) {
     val month = calendar.get(Calendar.MONTH)
     var weekSize = 6
 
-    private val days = mutableListOf<Day>().apply {
+    val days = mutableListOf<Day>().apply {
 
         val cal = calendar.clone() as Calendar  // calendar를 사용하면 중간에 날짜가 바뀌기 때문에 클릭할때마다 달력이 변함
 

@@ -39,12 +39,13 @@ class MoonCalendar(private var calendar: Calendar) {
     private val CALENDAR_SIZE = 1200
     private val CALENDAR_MID = CALENDAR_SIZE / 2
 
-    private val _clickedDay: MutableLiveData<Day> by lazy {
+    private val _clickedDay: MutableLiveData<Day> by lazy {  // 화면 전환시 다시 오늘로 바뀜
         MutableLiveData<Day>(Month.today)
     }
     val clickedDay : MutableLiveData<Day> get() = _clickedDay
 
     private lateinit var monthList: ArrayList<Month>
+    private var monthIdx: Int = 0
 
     init {
         setCalendarData()
@@ -90,7 +91,7 @@ class MoonCalendar(private var calendar: Calendar) {
                 modifier = contentModifier,
                 vState = vState, hState = hState, vAnchor = vAnchor,
                 left = left, mid = mid, right = right,
-                setCurrentMonthIdx = {idx -> currentMonthIdx = idx} // 람다함수를 사용함으로써 재구성을 피함
+                setCurrentMonthIdx = {idx -> currentMonthIdx = idx; monthIdx = currentMonthIdx} // 람다함수를 사용함으로써 재구성을 피함
             ) {
 
                 itemsCalendarMonth(month = { monthList[left.value] }) {
@@ -265,6 +266,7 @@ class MoonCalendar(private var calendar: Calendar) {
         content: @Composable () -> Unit,
     ) {
 
+        Log.d("ㅇㅇㅇㅇ", "Swiper")
         val vAnimate = animateFloatAsState(
             targetValue = vState.value,
             animationSpec = tween(
@@ -466,14 +468,19 @@ class MoonCalendar(private var calendar: Calendar) {
 
         Card(
             modifier = modifier
-                .MyClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 버벅거림이 사라짐
+                .MyClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
+                    clickedDay.value?.also {
+                        it.status = if (it == Month.today) DayStatus.Today else DayStatus.Clickable
+                    }
                     if (day().status != DayStatus.NonClickable) {
-                        clickedDay.value!!.status =
-                            if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
-
                         day().status = DayStatus.Clicked
                         clickedDay.value = day()
                     } else {
+                        val selectedDay = monthList[monthIdx + day().gap].days.find { it.value == day().value }
+                        selectedDay?.also {
+                            it.status = DayStatus.Clicked
+                            clickedDay.value = it
+                        }
                         if (day().gap == -1) {
                             moveCalendar(1)
                         } else if (day().gap == 1) {

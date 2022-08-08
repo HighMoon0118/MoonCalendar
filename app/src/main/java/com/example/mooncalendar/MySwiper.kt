@@ -29,6 +29,7 @@ fun Modifier.MySwiper(
         var hDist = 0f
         var isDetected = false
         var isVertical = false
+        var i = 0
 
         coroutineScope {
             detectDragGestures (
@@ -39,56 +40,53 @@ fun Modifier.MySwiper(
                     hDist = 0f
                     isDetected = false
                     isVertical = false
+                    var i = 0
                 },
                 onDrag = { change, offset ->
                     if (!isDetected) {
                         if (abs(offset.x) < abs(offset.y)) isVertical = true
                         isDetected = true
-                    }
-                    if (isDetected && isVertical) {
-                        var target = vState.value + offset.y
+                    } else {
+                        if (isVertical) {
+                            Log.d("ㅇㅇㅇ", "$${i++}")
+                            var target = vState.value + offset.y
 
-                        if (target <= 300) target = 300f
-                        else if (target >= vAnchor[2]) target = vAnchor[2]
+                            if (target <= 300) target = 300f
+                            else if (target >= vAnchor[2]) target = vAnchor[2]
 
-                        launch {
                             vState.value = target
                         }
-                    }
-                    else if(isDetected && !isVertical) {
-                        hDist += offset.x
-                        launch {
+                        else {
+                            hDist += offset.x
                             hState.value = currentHState + hDist
                         }
                     }
                 },
                 onDragEnd = {
-                    launch {
-                        if (isVertical) {
-                            val currentY = vState.value
+                    if (isVertical) {
+                        val currentY = vState.value
 
-                            if (currentVState == 0) {
-                                if (currentY > vAnchor[1]) currentVState = 2
-                                else if (currentY > vAnchor[0]) currentVState = 1
-                            } else if (currentVState == 1) {
-                                if (currentY < vAnchor[1]) currentVState = 0
-                                else if (currentY > vAnchor[1]) currentVState = 2
-                            } else if (currentVState == 2) {
-                                if (currentY < vAnchor[1]) currentVState = 0
-                                else if (currentY < vAnchor[2]) currentVState = 1
-                            }
+                        if (currentVState == 0) {
+                            if (currentY > vAnchor[1]) currentVState = 2
+                            else if (currentY > vAnchor[0]) currentVState = 1
+                        } else if (currentVState == 1) {
+                            if (currentY < vAnchor[1]) currentVState = 0
+                            else if (currentY > vAnchor[1]) currentVState = 2
+                        } else if (currentVState == 2) {
+                            if (currentY < vAnchor[1]) currentVState = 0
+                            else if (currentY < vAnchor[2]) currentVState = 1
+                        }
 
-                            vState.value = vAnchor[currentVState]
+                        vState.value = vAnchor[currentVState]
+                    } else {
+                        val line = width * thresholds
+
+                        if (hDist < -line) {
+                            hState.value = currentHState - width
+                        } else if (hDist > line) {
+                            hState.value = currentHState + width
                         } else {
-                            val line = width * thresholds
-
-                            if (hDist < -line) {
-                                hState.value = currentHState - width
-                            } else if (hDist > line) {
-                                hState.value = currentHState + width
-                            } else {
-                                hState.value = currentHState.toFloat()
-                            }
+                            hState.value = currentHState.toFloat()
                         }
                     }
                 }
