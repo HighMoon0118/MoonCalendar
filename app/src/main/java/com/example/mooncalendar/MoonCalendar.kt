@@ -5,6 +5,10 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitDragOrCancellation
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
@@ -14,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.*
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -464,7 +470,8 @@ class MoonCalendar(private var calendar: Calendar) {
 
         Card(
             modifier = modifier
-                .clickable {   // 람다함수를 사용함으로써 재구성을 피함
+                .MyClickable {   // 람다함수를 사용함으로써 재구성을 피함
+                    Log.d("ㅇㅇㅇㅇ", "클릭됨")
                     if (day().status != DayStatus.NonClickable) {
                         clickedDay.value!!.status =
                             if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
@@ -474,7 +481,7 @@ class MoonCalendar(private var calendar: Calendar) {
                     } else {
                         if (day().gap == -1) {
                             moveCalendar(1)
-                        } else if (day().gap == 1){
+                        } else if (day().gap == 1) {
                             moveCalendar(-1)
                         }
                     }
@@ -495,6 +502,17 @@ class MoonCalendar(private var calendar: Calendar) {
                     }
                 )
             }
+        }
+    }
+
+    fun Modifier.MyClickable(
+        onClicked: () -> Unit
+    ) = composed {
+
+        pointerInput(Unit) {
+            detectTapGestures (
+                onTap = { onClicked() }
+                    )
         }
     }
 
