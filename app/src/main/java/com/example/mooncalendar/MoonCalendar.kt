@@ -81,20 +81,16 @@ class MoonCalendar(private var calendar: Calendar) {
 //            } 이상해,,,
 
             val moveCalendar = {plus: Int ->
-                Log.d("zzzzz", "${hState.value}")
                 hState.value += plus * vAnchor.value[1]
-                Log.d("zzzzz", "${hState.value}")
-
-                Unit
             }
 
             CalendarHeader(contentModifier, monthList = { monthList }, currentMonthIdx = { currentMonthIdx + 1})
 
             Swiper(
-                modifier = contentModifier.animateContentSize(),
+                modifier = contentModifier,
                 vState = vState, hState = hState, vAnchor = vAnchor,
                 left = left, mid = mid, right = right,
-                setCurrentMonthIdx = {idx -> currentMonthIdx = idx}
+                setCurrentMonthIdx = {idx -> currentMonthIdx = idx} // 람다함수를 사용함으로써 재구성을 피함
             ) {
 
                 itemsCalendarMonth(month = { monthList[left.value] }) {
@@ -470,8 +466,7 @@ class MoonCalendar(private var calendar: Calendar) {
 
         Card(
             modifier = modifier
-                .MyClickable {   // 람다함수를 사용함으로써 재구성을 피함
-                    Log.d("ㅇㅇㅇㅇ", "클릭됨")
+                .MyClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 버벅거림이 사라짐
                     if (day().status != DayStatus.NonClickable) {
                         clickedDay.value!!.status =
                             if (clickedDay.value!! == Month.today) DayStatus.Today else DayStatus.Clickable
@@ -512,7 +507,7 @@ class MoonCalendar(private var calendar: Calendar) {
         pointerInput(Unit) {
             detectTapGestures (
                 onTap = { onClicked() }
-                    )
+            )
         }
     }
 
