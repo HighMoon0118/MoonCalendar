@@ -66,10 +66,6 @@ class MoonCalendar(private var calendar: Calendar) {
 
         Column(modifier) {
 
-            val contentModifier = Modifier
-                .fillMaxWidth()
-                .wrapContentWidth(Alignment.CenterHorizontally)
-
             val vAnchor = remember { mutableStateOf (listOf(0f, 0f, 0f) ) }
             val vState = remember { mutableStateOf (1080f) }
             val hState = remember { mutableStateOf (0f) }
@@ -85,36 +81,16 @@ class MoonCalendar(private var calendar: Calendar) {
                 hState.value += plus * vAnchor.value[1]
             }
 
-            CalendarHeader(contentModifier, monthList = { monthList }, currentMonthIdx = { currentMonthIdx + 1})
+            CalendarHeader(monthList = { monthList }, currentMonthIdx = { currentMonthIdx + 1})
 
             Swiper(
-                modifier = contentModifier,
                 vState = vState, hState = hState, vAnchor = vAnchor,
                 left = left, mid = mid, right = right,
                 setCurrentMonthIdx = {idx -> currentMonthIdx = idx; monthIdx = currentMonthIdx} // 람다함수를 사용함으로써 재구성을 피함
             ) {
-
-                itemsCalendarMonth(month = { monthList[left.value] }) {
-                    for(wI in 0..5) itemsCalendarWeek {
-                        for (dI in 0..6) {
-                            ItemDay(dI, { monthList[left.value].weeks.value[wI][dI] }, moveCalendar)  // 회색글씨를 클릭하면 다음달 또는 전달로 이동
-                        }
-                    }
-                }
-                itemsCalendarMonth(month = { monthList[mid.value] }) {
-                    for(wI in 0..5) itemsCalendarWeek {
-                        for (dI in 0..6) {
-                            ItemDay( dI, { monthList[mid.value].weeks.value[wI][dI] }, moveCalendar)
-                        }
-                    }
-                }
-                itemsCalendarMonth(month = { monthList[right.value] }) {
-                    for(wI in 0..5) itemsCalendarWeek {
-                        for (dI in 0..6) {
-                            ItemDay( dI, { monthList[right.value].weeks.value[wI][dI] }, moveCalendar)
-                        }
-                    }
-                }
+                ItemCalendarMonth({left.value}, moveCalendar)
+                ItemCalendarMonth({mid.value}, moveCalendar)
+                ItemCalendarMonth({right.value}, moveCalendar)
                 content()
             }
         }
@@ -123,15 +99,20 @@ class MoonCalendar(private var calendar: Calendar) {
 
     @Composable
     private fun CalendarHeader(
-        modifier: Modifier,
         monthList: () -> ArrayList<Month>,
         currentMonthIdx: () -> Int
     )
     {
+
         val month = monthList()[currentMonthIdx()]
 
-        Column() {
-            Row(modifier = modifier.padding(20.dp)) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+            ) {
                 Text(
                     text = if (month.month == 0) "${month.year - 1}년 12월" else "${month.year}년 ${month.month}월",
                     fontWeight = FontWeight.Bold,
@@ -139,12 +120,17 @@ class MoonCalendar(private var calendar: Calendar) {
                     fontStyle = FontStyle.Italic
                 )
             }
-
-            Row(modifier = modifier) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp, 0.dp)
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+            ) {
                 for (day in DayOfWeek.values()) {
                     Text(
                         modifier = Modifier
-                            .size(width = CELL_SIZE, height = CELL_SIZE)
+                            .weight(1 / 7f, true)
+                            .padding(0.dp, 8.dp)
                             .wrapContentSize(Alignment.Center),
                         text = day.name.take(1),
                         style = MaterialTheme.typography.caption.copy(Color.White.copy(alpha = 0.6f)),
@@ -160,99 +146,6 @@ class MoonCalendar(private var calendar: Calendar) {
     // 애니메이션이 부자연스럽고 커스터마이징을 할 수 없음
     // 월을 바꾼다거나 연도를 바꿀때 애니메이션이 가장 문제
 
-//    @OptIn(ExperimentalMaterialApi::class)
-//    @Composable
-//    private fun Swiper(
-//        modifier: Modifier = Modifier,
-//        horizonSwiper: () -> SwipeableState<Int>,
-//        idxList: () -> List<Int>,
-//        setIdxList: (Int, Int, Int) -> Unit,
-//        setCurrentMonthIdx: (Int) -> Unit,
-//        content: @Composable () -> Unit,
-//    ) {
-//
-//        var maxW by remember { mutableStateOf(1080) }
-//        val offset = - maxW * CALENDAR_MID
-//
-//        val pages = (0 until CALENDAR_SIZE).map { offset + it * maxW }.toList()
-//        val hAnchors = pages.mapIndexed {i, it -> it.toFloat() to i}.toMap()
-//
-//        val calX = (0 until CALENDAR_NUM).map { it * maxW }.toMutableList()
-//        var (preX, preI) = arrayOf(0, CALENDAR_MID)
-//
-//        Log.d("ggggggggggg,", "hhhhhhhhhhhhh")
-//        var mid = 1
-//
-//        Layout(
-//            modifier = Modifier
-//                .swipeable(
-//                    state = horizonSwiper(),
-//                    anchors = hAnchors,
-//                    thresholds = { _, _ -> FractionalThreshold(0.1f) },
-//                    orientation = Orientation.Horizontal,
-//                    velocityThreshold = Integer.MAX_VALUE.dp
-//                ),
-//            content = content
-//        ) { measurables, constraints ->
-//
-//            maxW = constraints.maxWidth
-//            val width = maxW * CALENDAR_NUM
-//
-//            val moveX = horizonSwiper().offset.value.roundToInt() - preX
-//            var tmp = calX.map { it + moveX }.toMutableList()
-//
-//            val nowI = horizonSwiper().progress.from
-//            val swiperW = CALENDAR_NUM * maxW
-//
-//            val postI = horizonSwiper().progress.to
-//
-//            if (abs(moveX) > maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - postI)
-//            else if (abs(moveX) < maxW / 2) setCurrentMonthIdx(CALENDAR_SIZE - nowI)
-//
-//            if (nowI != preI) {
-//
-//                var gap = nowI - preI
-//                val plus = gap * maxW
-//
-//                for (i in 0 until CALENDAR_NUM) {
-//                    calX[i] += plus
-//                    if (calX[i] == swiperW) {  // 오른쪽으로 이동 (전 달)
-//                        when(mid) {
-//                            2 -> setIdxList(idxList()[1] - 1, idxList()[1], idxList()[2])
-//                            0 -> setIdxList(idxList()[0], idxList()[2] - 1, idxList()[2])
-//                            1 -> setIdxList(idxList()[0], idxList()[1], idxList()[0] - 1)
-//                        }
-//                        mid += 1
-//                        if (mid > 2) mid -= 3
-//                        calX[i] = 0
-//                    }
-//                    if (calX[i] < 0) {  // 왼쪽으로 이동 (다음 달)
-//                        when(mid) {
-//                            1 -> setIdxList(idxList()[2] + 1, idxList()[1], idxList()[2])
-//                            2 -> setIdxList(idxList()[0], idxList()[0] + 1, idxList()[2])
-//                            0 -> setIdxList(idxList()[0], idxList()[1], idxList()[1] + 1)
-//                        }
-//                        mid -= 1
-//                        if (mid < 0) mid += 3
-//                        calX[i] = swiperW - maxW
-//                    }
-//                }
-//                preI = nowI
-//                tmp = calX
-//                preX += plus
-//            }
-//
-//            val placeables = measurables.map { measurable -> measurable.measure(constraints) }
-//            val minHeight = placeables.reduce { a, b ->
-//                if (a.height < b.height) a else b
-//            }
-//            layout(width, minHeight.height){
-//                placeables.forEachIndexed { i, placeable ->
-//                    placeable.placeRelative(x = tmp[i], y = 0)
-//                }
-//            }
-//        }
-//    }
 
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
@@ -265,8 +158,6 @@ class MoonCalendar(private var calendar: Calendar) {
         hState: MutableState<Float>,
         content: @Composable () -> Unit,
     ) {
-
-        Log.d("ㅇㅇㅇㅇ", "Swiper")
         val vAnimate = animateFloatAsState(
             targetValue = vState.value,
             animationSpec = tween(
@@ -290,7 +181,7 @@ class MoonCalendar(private var calendar: Calendar) {
         var lmr by remember { mutableStateOf( arrayOf(0, 1, 2)) }
 
         Layout(
-            modifier = modifier.MySwiper(
+            modifier = modifier.mySwiper(
                 vState = vState,
                 hState = hState,
                 vAnchor = vAnchor,
@@ -350,108 +241,25 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
-
-//    @OptIn(ExperimentalMaterialApi::class)
-//    @Composable
-//    private fun itemsCalendarMonth(
-
-//        month: () -> Month,
-//        verticalSwiper: () -> SwipeableState<Int>,
-//        content: @Composable () -> Unit
-//    ) {
-//        var minH by remember { mutableStateOf(1079) }
-//        var midH by remember { mutableStateOf(1080) }
-//        var maxH by remember { mutableStateOf(1081) }
-//
-//        val vAnchors = mapOf(minH.toFloat() to 0, midH.toFloat() to 1, maxH.toFloat() to 2)
-//
-//        Layout(
-//            modifier = Modifier
-//                .swipeable(
-//                    state = verticalSwiper(),
-//                    anchors = vAnchors,
-//                    thresholds = { _, _ -> FractionalThreshold(0.5f) },
-//                    orientation = Orientation.Vertical,
-//                    resistance = ResistanceConfig(0f, 0f, 0f)
-//                ),
-//            content = content
-//        ) { measurables, constraints ->
-//
-//            val width = constraints.maxWidth
-//            val height = constraints.maxHeight
-//            minH = width / 2
-//            midH = width
-//            maxH = height
-//
-//            val value = verticalSwiper().offset.value.roundToInt()
-//
-//            val itemH = value / month().weekSize
-//
-//            val placeables = measurables.map { measurable -> measurable.measure(Constraints(width, width, 0, itemH)) }
-//
-//
-//            layout(width, value){
-//                var h = 0
-//                placeables.forEachIndexed { i, placeable ->
-//                    if (month().weekSize == 5 && i == 5) return@forEachIndexed
-//                    placeable.placeRelative(x = 0, y = h)
-//                    h += itemH
-//                }
-//            }
-//        }
-//    }
-
-    @OptIn(ExperimentalMaterialApi::class)
     @Composable
-    private fun itemsCalendarMonth(
-        month: () -> Month,
-        content: @Composable () -> Unit
+    private fun ItemCalendarMonth(
+        monthIdx: () -> Int,
+        moveCalendar: (Int) -> Unit
     ) {
-        Layout(
-            modifier = Modifier,
-            content = content
-        ) { measurables, constraints ->
+        Log.d("생성", "ItemMonth")
 
-            val w = constraints.maxWidth
-            val h = constraints.maxHeight
+        val rows = if (monthList[monthIdx()].weekSize == 5) 5 else 6
 
-            val itemH = h / month().weekSize
-
-            val placeables = measurables.map { measurable -> measurable.measure(Constraints(w, w, 0, itemH)) }
-
-
-            layout(w, h){
-                var y = 0
-                placeables.forEachIndexed { i, placeable ->
-                    if (month().weekSize == 5 && i == 5) return@forEachIndexed
-                    placeable.placeRelative(x = 0, y = y)
-                    y += itemH
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun itemsCalendarWeek(
-        content: @Composable () -> Unit
-    ) {
-        Layout(
-            modifier = Modifier,
-            content = content
-        ) { measurables, constraints ->
-
-            val w = constraints.maxWidth
-            val h = constraints.maxHeight
-
-            val itemW = w / 7
-
-            val placeables = measurables.map { measurable -> measurable.measure(Constraints(itemW, itemW, 0, h)) }
-
-            layout(w, h){
-                var x = 0
-                placeables.forEachIndexed { i, placeable ->
-                    placeable.placeRelative(x = x, y = 0)
-                    x += itemW
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp, 0.dp)
+        ) {
+            repeat(rows) { r ->
+                Row(Modifier.weight(1 / rows.toFloat(), true)) {
+                    repeat(7) { c ->
+                        Box(Modifier.weight(1 / 7f, true)){
+                            ItemDay({ monthList[monthIdx()].weeks.value[r][c] }, moveCalendar)
+                        }
+                    }
                 }
             }
         }
@@ -459,40 +267,35 @@ class MoonCalendar(private var calendar: Calendar) {
 
     @Composable
     private fun ItemDay(
-        idx: Int,
         day: () -> Day,
-        moveCalendar: (Int) -> Unit,
-        modifier: Modifier = Modifier
+        moveCalendar: (Int) -> Unit
     ) {
-        val clickedColor = if (day().status == DayStatus.Clicked) Color.Gray else Color.White
-
+        Log.d("생성", "ItemDay")
         Card(
-            modifier = modifier
-                .MyClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
-                    clickedDay.value?.also {
-                        it.status = if (it == Month.today) DayStatus.Today else DayStatus.Clickable
+            border = BorderStroke(1.dp, if (day().status == DayStatus.Clicked) Color.Gray else Color.White),
+            modifier = Modifier
+                .fillMaxSize()
+                .myClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
+                    clickedDay.value?.also { day ->
+                        day.status =
+                            if (day == Month.today) DayStatus.Today else DayStatus.Clickable
                     }
                     if (day().status != DayStatus.NonClickable) {
-                        day().status = DayStatus.Clicked
-                        clickedDay.value = day()
+                        clickedDay.value = day().apply { status = DayStatus.Clicked }
                     } else {
-                        val selectedDay = monthList[monthIdx + day().gap].days.find { it.value == day().value }
-                        selectedDay?.also {
-                            it.status = DayStatus.Clicked
-                            clickedDay.value = it
-                        }
-                        if (day().gap == -1) {
-                            moveCalendar(1)
-                        } else if (day().gap == 1) {
-                            moveCalendar(-1)
-                        }
+                        monthList[monthIdx + day().gap].days
+                            .find { it.value == day().value }
+                            ?.also { day ->
+                                clickedDay.value = day.apply { status = DayStatus.Clicked }
+                            }
+                        if (day().gap == -1) moveCalendar(1)
+                        else if (day().gap == 1) moveCalendar(-1)
                     }
                 }
-                .fillMaxSize(),
-            border = BorderStroke(1.dp, clickedColor)
         ) {
             Column {
                 Text(
+                    modifier = Modifier.fillMaxWidth(),
                     text = day().value,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.body1.copy(color = Color.Black),
@@ -507,7 +310,7 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
-    fun Modifier.MyClickable(
+    private fun Modifier.myClickable(
         onClicked: () -> Unit
     ) = composed {
 
@@ -516,12 +319,6 @@ class MoonCalendar(private var calendar: Calendar) {
                 onTap = { onClicked() }
             )
         }
-    }
-
-    private fun DayOfWeek.color(): Color = when (this) {
-        DayOfWeek.Sunday -> Color.Red
-        DayOfWeek.Saturday -> Color.Blue
-        else -> Color.Black
     }
 
     private fun setCalendarData(date: Date = calendar.time) : ArrayList<Month>{

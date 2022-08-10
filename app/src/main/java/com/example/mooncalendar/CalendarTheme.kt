@@ -1,5 +1,6 @@
 package com.example.mooncalendar
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
@@ -26,9 +27,11 @@ private val LightColors = lightColors(
     // ...
 )
 @Composable
-fun CalendarTheme(content: @Composable () -> Unit) {
+fun CalendarTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit) {
     MaterialTheme(
-        colors = LightColors
+        colors = if (darkTheme) DarkColors else LightColors
     ) {
         CompositionLocalProvider(
             LocalRippleTheme provides NoRippleTheme

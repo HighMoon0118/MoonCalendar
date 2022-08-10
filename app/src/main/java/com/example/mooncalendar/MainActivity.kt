@@ -32,9 +32,10 @@ class MainActivity : ComponentActivity() {
 
             Column {
 
-                var clicked by remember { mutableStateOf(" ") }
+                var clickedDay by remember { mutableStateOf(" ") }
+
                 mC.clickedDay.observe(this@MainActivity) { day ->
-                    clicked = day.value
+                    clickedDay = day.value
                 }
 
                 CalendarTheme {
@@ -42,7 +43,7 @@ class MainActivity : ComponentActivity() {
 
                         Column {
                             Text("일정")
-                            ClickedDay { clicked }  // 값이 ClickedDay 내부에서 읽히므로 값이 변해도 ClickedDay 만 재구성됩니다.
+                            ClickedDay { clickedDay }  // 값이 ClickedDay 내부에서 읽히므로 값이 변해도 ClickedDay 만 재구성됩니다.
                         }
                     }
                 }

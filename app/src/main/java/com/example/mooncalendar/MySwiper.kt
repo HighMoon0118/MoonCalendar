@@ -12,7 +12,7 @@ import kotlinx.coroutines.*
 import kotlin.math.abs
 
 @OptIn(ExperimentalComposeUiApi::class)
-fun Modifier.MySwiper(
+fun Modifier.mySwiper(
     vState: MutableState<Float>,
     hState: MutableState<Float>,
     vAnchor: MutableState<List<Float>>,
