@@ -40,7 +40,6 @@ fun Modifier.mySwiper(
                     hDist = 0f
                     isDetected = false
                     isVertical = false
-                    var i = 0
                 },
                 onDrag = { change, offset ->
                     if (!isDetected) {
@@ -48,7 +47,6 @@ fun Modifier.mySwiper(
                         isDetected = true
                     } else {
                         if (isVertical) {
-                            Log.d("ㅇㅇㅇ", "$${i++}")
                             var target = vState.value + offset.y
 
                             if (target <= 300) target = 300f
