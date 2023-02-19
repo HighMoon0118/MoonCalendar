@@ -1,17 +1,17 @@
 package com.example.mooncalendar
 
+import android.app.Dialog
+import android.app.DialogFragment
 import android.util.Log
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.awaitDragOrCancellation
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,13 +23,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.MutableLiveData
 import java.security.cert.TrustAnchor
@@ -65,6 +65,8 @@ class MoonCalendar(private var calendar: Calendar) {
     ) {
         var currentMonthIdx by remember { mutableStateOf(CALENDAR_MID) }
 
+        var isTitleClicked by remember { mutableStateOf(false) }
+
         // 바뀐 달만 다시 만들어주기 위해 하나씩 생성
         val left = remember { mutableStateOf(CALENDAR_MID - 1)}
         val mid = remember { mutableStateOf(CALENDAR_MID)}
@@ -98,7 +100,8 @@ class MoonCalendar(private var calendar: Calendar) {
             CalendarHeader(
                 monthList = { monthList },
                 currentMonthIdx = { currentMonthIdx + 1 }, // + 1을 해줘야 맞음
-                moveCalendar = moveCalendar
+                moveCalendar = moveCalendar,
+                onTitleClicked = { isTitleClicked = true }
             )
 
             Swiper(
@@ -106,20 +109,44 @@ class MoonCalendar(private var calendar: Calendar) {
                 left = left, mid = mid, right = right,
                 setCurrentMonthIdx = {idx -> currentMonthIdx = idx} // 람다함수를 사용함으로써 재구성을 피함
             ) {
-                ItemCalendarMonth({ left.value }, { currentMonthIdx + 1 }, moveCalendar)
-                ItemCalendarMonth({ mid.value }, { currentMonthIdx + 1 }, moveCalendar)
-                ItemCalendarMonth({ right.value }, { currentMonthIdx + 1 }, moveCalendar)
+                ItemCalendarMonth({ left.value }, { currentMonthIdx }, moveCalendar)
+                ItemCalendarMonth({ mid.value }, { currentMonthIdx }, moveCalendar)
+                ItemCalendarMonth({ right.value }, { currentMonthIdx }, moveCalendar)
                 content()
+            }
+
+            if (isTitleClicked) {
+                Dialog(
+                    onDismissRequest = { isTitleClicked = false },
+                    properties = DialogProperties()
+                ) {
+                    Box(modifier = Modifier
+                        .size(300.dp)
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .wrapContentSize(Alignment.Center))
+                    {
+                        Column(
+                            modifier = Modifier
+                                .background(Color.LightGray)
+                                .size(100.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            repeat(10) {
+                                Text("Item $it", modifier = Modifier.padding(2.dp))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-
 
     @Composable
     private fun CalendarHeader(
         monthList: () -> ArrayList<Month>,
         currentMonthIdx: () -> Int,
-        moveCalendar: (Int) -> Unit
+        moveCalendar: (Int) -> Unit,
+        onTitleClicked: () -> Unit
     ) {
         Log.d("CalendarHeader", "${currentMonthIdx()}")
         val month = monthList()[currentMonthIdx()]
@@ -138,14 +165,16 @@ class MoonCalendar(private var calendar: Calendar) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
                     fontStyle = FontStyle.Italic,
-                    modifier = Modifier.constrainAs(currentDate) {
-                        top.linkTo(parent.top)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                    }
+                    modifier = Modifier
+                        .constrainAs(currentDate) {
+                            top.linkTo(parent.top)
+                            start.linkTo(parent.start)
+                            end.linkTo(parent.end)
+                        }
+                        .myClickable { onTitleClicked() }
                 )
                 Card(
-                    border = BorderStroke(1.dp, Color(0xFF0074FF)),
+                    border = BorderStroke(2.dp, Color(0xFF0074FF)),
                     modifier = Modifier
                         .constrainAs(today) {
                             top.linkTo(parent.top)
@@ -162,9 +191,14 @@ class MoonCalendar(private var calendar: Calendar) {
                             moveCalendar(gap)
                         }
                 ) {
-                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFCDDCEE)).wrapContentSize(Alignment.Center)) {
+                    Box(modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFCDDCEE))
+                        .wrapContentSize(Alignment.Center)
+                    ){
                         Text(
                             text = Month.today.value,
+                            fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -183,6 +217,7 @@ class MoonCalendar(private var calendar: Calendar) {
                             .padding(0.dp, 8.dp)
                             .wrapContentSize(Alignment.Center),
                         text = day.name.take(1),
+                        fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.caption.copy(Color.White.copy(alpha = 0.6f)),
                         color = Color.Black
                     )
@@ -197,7 +232,6 @@ class MoonCalendar(private var calendar: Calendar) {
     // 월을 바꾼다거나 연도를 바꿀때 애니메이션이 가장 문제
 
 
-    @OptIn(ExperimentalMaterialApi::class)
     @Composable
     private fun Swiper(
         modifier: Modifier = Modifier,
@@ -206,22 +240,26 @@ class MoonCalendar(private var calendar: Calendar) {
         vAnchor: MutableState<List<Float>>, vState: MutableState<Float>, hState: MutableState<Float>,
         content: @Composable () -> Unit,
     ) {
+        Log.d("Swiper", "Swiper")
         val vAnimate = animateFloatAsState(
             targetValue = vState.value,
             animationSpec = tween(
                 durationMillis = if (vState.value in vAnchor.value) 250 else 0,
                 easing = LinearOutSlowInEasing
-            ),
+            )
         )
 
         val hAnimate = animateFloatAsState(
             targetValue = hState.value,
-            animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
+            animationSpec = tween(
+                durationMillis = 250,
+                easing = LinearOutSlowInEasing
+            )
         )
         var size by remember { mutableStateOf(0)}
 
-        var x_List by remember { mutableStateOf ( arrayOf(0, size, size * 2)) }
-        if (x_List[1] == 0) x_List = arrayOf(0, size, size*2)
+        var xList by remember { mutableStateOf ( arrayOf(0, size, size * 2)) }
+        if (xList[1] == 0) xList = arrayOf(0, size, size * 2)
 
         var lmr by remember { mutableStateOf( arrayOf(0, 1, 2)) }
 
@@ -245,7 +283,7 @@ class MoonCalendar(private var calendar: Calendar) {
                 vAnchor.value = listOf((itemW / 2).toFloat(), itemW.toFloat(), itemH.toFloat())
             }
 
-            val tmp = x_List.map { num -> num + hAnimate.value.toInt() }
+            val tmp = xList.map { num -> num + hAnimate.value.toInt() }
 
             val state = (hState.value / itemW).roundToInt()
             setCurrentMonthIdx(CALENDAR_MID + offset - state)
@@ -258,7 +296,7 @@ class MoonCalendar(private var calendar: Calendar) {
                     0 -> mid.value -= 3
                     1 -> right.value -= 3
                 }
-                x_List[lmr[2]] -= w
+                xList[lmr[2]] -= w
                 lmr = arrayOf(lmr[2], lmr[0], lmr[1])
 
             } else if (tmp[lmr[0]] <= -itemW) {  // 다음 달로 이동
@@ -268,7 +306,7 @@ class MoonCalendar(private var calendar: Calendar) {
                     2 -> mid.value += 3
                     0 -> right.value += 3
                 }
-                x_List[lmr[0]] += w
+                xList[lmr[0]] += w
                 lmr = arrayOf(lmr[1], lmr[2], lmr[0])
             }
 
@@ -313,6 +351,7 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
+    @OptIn(ExperimentalAnimationApi::class)
     @Composable
     private fun ItemDay(
         day: () -> Day,
@@ -321,34 +360,40 @@ class MoonCalendar(private var calendar: Calendar) {
     ) {
         Log.d("생성", "ItemDay")
         Card(
-            border = BorderStroke(1.dp, if (day().status == DayStatus.Clicked) Color.Gray else Color.White),
+            border = BorderStroke(
+                1.dp,
+                if (day().status == DayStatus.Clicked) Color.Gray else Color.White
+            ),
             modifier = Modifier
                 .fillMaxSize()
-                .myClickable {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
-                    clickedDay.value?.also { day ->
-                        day.status =
-                            if (day == Month.today) DayStatus.Today else DayStatus.Clickable
+                .myClickable(
+                    onClicked = {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
+                        clickedDay.value?.also { day ->
+                            day.status =
+                                if (day == Month.today) DayStatus.Today else DayStatus.Clickable
+                        }
+                        if (day().status != DayStatus.NonClickable) {
+                            clickedDay.value = day().apply { status = DayStatus.Clicked }
+                        } else {
+                            monthList[currentMonthIdx() + day().gap].days
+                                .find { it.value == day().value }
+                                ?.also { day ->
+                                    clickedDay.value = day.apply { status = DayStatus.Clicked }
+                                }
+                            if (day().gap == -1) moveCalendar(-1)
+                            else if (day().gap == 1) moveCalendar(+1)
+                        }
                     }
-                    if (day().status != DayStatus.NonClickable) {
-                        clickedDay.value = day().apply { status = DayStatus.Clicked }
-                    } else {
-                        monthList[currentMonthIdx() + day().gap].days
-                            .find { it.value == day().value }
-                            ?.also { day ->
-                                clickedDay.value = day.apply { status = DayStatus.Clicked }
-                            }
-                        if (day().gap == -1) moveCalendar(-1)
-                        else if (day().gap == 1) moveCalendar(+1)
-                    }
-                }
+                )
         ) {
             Column {
                 Text(
                     modifier = Modifier.fillMaxWidth(),
                     text = day().value,
                     textAlign = TextAlign.Center,
+                    fontSize = 12.sp,
                     style = MaterialTheme.typography.body1.copy(color = Color.Black),
-                    color = when(day().status){
+                    color = when (day().status) {
                         DayStatus.Today -> Color.Green
                         DayStatus.Clicked -> Color.Magenta
                         DayStatus.NonClickable -> Color.LightGray
@@ -359,7 +404,7 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
-    private fun Modifier.myClickable(  // onClicked 함수가 후에 바껴도 적용이 안됨... -> remeberUpdatedState로 해결
+    private fun Modifier.myClickable(  // onClicked 함수 인자가 후에 바껴도 적용이 안됨... -> remeberUpdatedState로 해결
         onClicked: () -> Unit
     ) = composed {
         val onClickState = rememberUpdatedState(onClicked)
