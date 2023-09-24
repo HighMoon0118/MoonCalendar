@@ -255,7 +255,7 @@ class MoonCalendar(private var calendar: Calendar) {
         setCurrentMonthIdx: (Int) -> Unit,
         content: @Composable () -> Unit,
     ) {
-        Log.d("Swiper", "Swiper")
+        Log.d("Swiper", "-")
         val vAnimate = animateFloatAsState(
             targetValue = vState.value,
             animationSpec = tween(
@@ -271,10 +271,9 @@ class MoonCalendar(private var calendar: Calendar) {
                 easing = LinearOutSlowInEasing
             )
         )
-        var size by remember { mutableStateOf(0)}
 
-        var xList by remember { mutableStateOf ( arrayOf(0, size, size * 2)) }
-        if (xList[1] == 0) xList = arrayOf(0, size, size * 2)
+        var xList by remember { mutableStateOf ( arrayOf(0, 0, 0)) }
+        if (xList[1] == 0) xList = arrayOf(0, width.value.toInt(), width.value.toInt() * 2)
 
         var lmr by remember { mutableStateOf( arrayOf(0, 1, 2)) }
 
@@ -284,22 +283,20 @@ class MoonCalendar(private var calendar: Calendar) {
                 hState = hState,
                 vAnchor = vAnchor,
                 width = width,
-                thresholds = 0.1f
+                thresholds = 0.15f
             ),
             content = content
         ) { measurables, constraints ->
+            Log.d("Swiper", "Layout")
 
-            val totalWidth = constraints.maxWidth * 3
             val itemW = constraints.maxWidth
             val itemH = constraints.maxHeight
-
-            size = itemW
-
-            val tmp = xList.map { num -> num + hAnimate.value.toInt() }
+            val totalWidth = itemW * 3
 
             val state = (hState.value / itemW).roundToInt()
             setCurrentMonthIdx(CALENDAR_MID + offset - state)
 
+            val tmp = xList.map { num -> num + hAnimate.value.toInt() }
 
             if (tmp[lmr[2]] >= totalWidth) {  // 전 달로 이동
 

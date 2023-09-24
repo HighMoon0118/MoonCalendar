@@ -21,20 +21,19 @@ fun Modifier.mySwiper(
 ) = pointerInput(Unit) {
 
     val anchor = vAnchor.value
-    val width = width.value  // 값이 0이여서 divide by zero 오류가 뜰 때가 있음, 확인 요
+    val itemWidth = width.value
     var currentHState = 0
     var currentVState = CalendarSize.MID
 
     var hDist = 0f
     var isDetected = false
     var isVertical = false
-    var i = 0
+
     val minHeight = (anchor[0] * 0.8).toFloat()
 
     detectDragGestures (
         onDragStart = {
-            val gap = (hState.value - currentHState).toInt() / width.toInt()
-            if (abs(gap) >= 1) currentHState += gap * width.toInt()
+            currentHState = hState.value.toInt()
 
             hDist = 0f
             isDetected = false
@@ -62,35 +61,36 @@ fun Modifier.mySwiper(
         onDragEnd = {
             if (isVertical) {
                 val currentY = vState.value
+
                 currentVState = when (currentVState) {
                     CalendarSize.SMALL -> {
                         when {
                             currentY > anchor[CalendarSize.MID.value] -> CalendarSize.LARGE
                             currentY > anchor[CalendarSize.SMALL.value] -> CalendarSize.MID
-                            else -> currentVState
+                            else -> CalendarSize.SMALL
                         }
                     }
                     CalendarSize.MID -> {
                         when {
                             currentY < anchor[CalendarSize.MID.value] -> CalendarSize.SMALL
                             currentY > anchor[CalendarSize.MID.value] -> CalendarSize.LARGE
-                            else -> currentVState
+                            else -> CalendarSize.MID
                         }
                     }
                     CalendarSize.LARGE -> {
                         when {
                             currentY < anchor[CalendarSize.MID.value] -> CalendarSize.SMALL
                             currentY < anchor[CalendarSize.LARGE.value] -> CalendarSize.MID
-                            else -> currentVState
+                            else -> CalendarSize.LARGE
                         }
                     }
                 }
                 vState.value = anchor[currentVState.value]
             } else {
-                val line = width * thresholds
+                val line = itemWidth * thresholds
                 hState.value = when {
-                    hDist < -line -> currentHState - width
-                    hDist > line -> currentHState + width
+                    hDist < -line -> currentHState - itemWidth
+                    hDist > line -> currentHState + itemWidth
                     else -> currentHState.toFloat()
                 }
             }
