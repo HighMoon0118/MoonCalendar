@@ -23,6 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,9 +63,10 @@ class MoonCalendar(private var calendar: Calendar) {
     @ExperimentalMaterialApi
     @Composable
     fun DrawCalendar(
-        modifier: Modifier = Modifier,
+        modifier: Modifier = Modifier.size(300.dp, 300.dp),
         content: @Composable () -> Unit
     ) {
+        Log.d("DrawCalendar", "DrawCalendar")
         var currentMonthIdx by remember { mutableStateOf(CALENDAR_MID) }
 
         var isTitleClicked by remember { mutableStateOf(false) }
@@ -72,11 +76,21 @@ class MoonCalendar(private var calendar: Calendar) {
         val mid = remember { mutableStateOf(CALENDAR_MID)}
         val right = remember { mutableStateOf(CALENDAR_MID + 1)}
 
-        Column(modifier) {
+        var heightUnit by remember { mutableStateOf (0f) }
+        val width = remember { mutableStateOf (0f) }
+        val vAnchor = remember { mutableStateOf ( listOf(0f, 0f, 0f) ) }
+        val vState = remember { mutableStateOf (0f) }
+        val hState = remember { mutableStateOf (0f) }
 
-            val vAnchor = remember { mutableStateOf (listOf(0f, 0f, 0f) ) }
-            val vState = remember { mutableStateOf (1080f) }
-            val hState = remember { mutableStateOf (0f) }
+        val density = LocalDensity.current.density
+
+        Column(modifier.onGloballyPositioned { coordinates ->
+            width.value = coordinates.size.width.toFloat()
+            heightUnit = coordinates.size.height.toFloat() / 10
+            vAnchor.value = listOf(heightUnit * 3, heightUnit * 6, heightUnit * 9)
+            vState.value = vAnchor.value[1]
+        }) {
+            Log.d("DrawCalendar", "Column")
 
 //            val coroutineScope = rememberCoroutineScope()
 //            val moveCalendar = {gap: Int ->
@@ -88,7 +102,7 @@ class MoonCalendar(private var calendar: Calendar) {
             val moveCalendar = {plus: Int ->
                 currentMonthIdx += plus
                 if (abs(plus) < 3) {
-                    hState.value -= plus * vAnchor.value[1]
+                    hState.value -= plus * width.value
                 } else {
                     offset += plus
                     left.value += plus
@@ -98,6 +112,7 @@ class MoonCalendar(private var calendar: Calendar) {
             }
 
             CalendarHeader(
+                modifier = Modifier.height((heightUnit / density).dp),
                 monthList = { monthList },
                 currentMonthIdx = { currentMonthIdx + 1 }, // + 1을 해줘야 맞음
                 moveCalendar = moveCalendar,
@@ -105,7 +120,7 @@ class MoonCalendar(private var calendar: Calendar) {
             )
 
             Swiper(
-                vState = vState, hState = hState, vAnchor = vAnchor,
+                width = width, vState = vState, hState = hState, vAnchor = vAnchor,
                 left = left, mid = mid, right = right,
                 setCurrentMonthIdx = {idx -> currentMonthIdx = idx} // 람다함수를 사용함으로써 재구성을 피함
             ) {
@@ -143,6 +158,7 @@ class MoonCalendar(private var calendar: Calendar) {
 
     @Composable
     private fun CalendarHeader(
+        modifier: Modifier,
         monthList: () -> ArrayList<Month>,
         currentMonthIdx: () -> Int,
         moveCalendar: (Int) -> Unit,
@@ -152,11 +168,10 @@ class MoonCalendar(private var calendar: Calendar) {
         val month = monthList()[currentMonthIdx()]
         val gap = (Month.todayYear - month.year) * 12 + Month.todayMonth - month.month + 1
 
-        Column {
+        Column(modifier) {
             ConstraintLayout(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
             ) {
                 val (currentDate, today) = createRefs()
 
@@ -234,10 +249,10 @@ class MoonCalendar(private var calendar: Calendar) {
 
     @Composable
     private fun Swiper(
-        modifier: Modifier = Modifier,
         left: MutableState<Int>, mid: MutableState<Int>, right: MutableState<Int>,
-        setCurrentMonthIdx: (Int) -> Unit,
+        width: MutableState<Float>,
         vAnchor: MutableState<List<Float>>, vState: MutableState<Float>, hState: MutableState<Float>,
+        setCurrentMonthIdx: (Int) -> Unit,
         content: @Composable () -> Unit,
     ) {
         Log.d("Swiper", "Swiper")
@@ -264,24 +279,21 @@ class MoonCalendar(private var calendar: Calendar) {
         var lmr by remember { mutableStateOf( arrayOf(0, 1, 2)) }
 
         Layout(
-            modifier = modifier.mySwiper(
+            modifier = Modifier.mySwiper(
                 vState = vState,
                 hState = hState,
                 vAnchor = vAnchor,
+                width = width,
                 thresholds = 0.1f
             ),
             content = content
         ) { measurables, constraints ->
 
-            val w = constraints.maxWidth * 3
+            val totalWidth = constraints.maxWidth * 3
             val itemW = constraints.maxWidth
             val itemH = constraints.maxHeight
 
             size = itemW
-
-            if (vAnchor.value[1].toInt() != itemW) {
-                vAnchor.value = listOf((itemW / 2).toFloat(), itemW.toFloat(), itemH.toFloat())
-            }
 
             val tmp = xList.map { num -> num + hAnimate.value.toInt() }
 
@@ -289,14 +301,14 @@ class MoonCalendar(private var calendar: Calendar) {
             setCurrentMonthIdx(CALENDAR_MID + offset - state)
 
 
-            if (tmp[lmr[2]] >= w) {  // 전 달로 이동
+            if (tmp[lmr[2]] >= totalWidth) {  // 전 달로 이동
 
                 when (lmr[1]) {
                     2 -> left.value -= 3  // 1 2 0 -> 0 1 2
                     0 -> mid.value -= 3
                     1 -> right.value -= 3
                 }
-                xList[lmr[2]] -= w
+                xList[lmr[2]] -= totalWidth
                 lmr = arrayOf(lmr[2], lmr[0], lmr[1])
 
             } else if (tmp[lmr[0]] <= -itemW) {  // 다음 달로 이동
@@ -306,20 +318,20 @@ class MoonCalendar(private var calendar: Calendar) {
                     2 -> mid.value += 3
                     0 -> right.value += 3
                 }
-                xList[lmr[0]] += w
+                xList[lmr[0]] += totalWidth
                 lmr = arrayOf(lmr[1], lmr[2], lmr[0])
             }
 
 
-            val h = vAnimate.value.toInt()
+            val animatedH = vAnimate.value.toInt()
 
             val items = measurables.map { measurable ->
-                measurable.measure(Constraints(itemW, itemW, 0, h))
+                measurable.measure(Constraints(itemW, itemW, 0, animatedH))
             }
 
-            layout(w, itemH){
+            layout(totalWidth, itemH){
                 for(i in 0 until 3) items[i].placeRelative(x = tmp[i], y = 0)
-                items[3].placeRelative(x = itemW, y = h)
+                items[3].placeRelative(x = itemW, y = animatedH)
             }
         }
     }
@@ -351,6 +363,11 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
+    /**
+     * @param day : Day객체
+     * @param currentMonthIdx : 해당 달의 Index
+     * @param moveCalendar : 현재 달에서 보이는 이전 달의 날짜나 다음 달의 날짜를 클릭시 클릭한 달로 Swipe
+     */
     @OptIn(ExperimentalAnimationApi::class)
     @Composable
     private fun ItemDay(
@@ -362,23 +379,36 @@ class MoonCalendar(private var calendar: Calendar) {
         Card(
             border = BorderStroke(
                 1.dp,
-                if (day().status == DayStatus.Clicked) Color.Gray else Color.White
+                if (day().status == DayStatus.Clicked)
+                    Color.Gray
+                else
+                    Color.White
             ),
             modifier = Modifier
                 .fillMaxSize()
                 .myClickable(
-                    onClicked = {  // 람다함수를 사용함으로써 재구성을 피함, 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
+                    onClicked = {
+                        Log.d("clickable", "test")
+                        // 람다함수를 사용함으로써 재구성을 피함
+                        // 기존에 clickable을 빼니까 앱을 켰을 때 세로 드래그시 버벅거림이 사라짐
                         clickedDay.value?.also { day ->
                             day.status =
-                                if (day == Month.today) DayStatus.Today else DayStatus.Clickable
+                                if (day == Month.today)
+                                    DayStatus.Today
+                                else
+                                    DayStatus.Clickable
                         }
                         if (day().status != DayStatus.NonClickable) {
-                            clickedDay.value = day().apply { status = DayStatus.Clicked }
+                            clickedDay.value = day().apply {
+                                status = DayStatus.Clicked
+                            }
                         } else {
                             monthList[currentMonthIdx() + day().gap].days
-                                .find { it.value == day().value }
+                                .find { it.value == day().value && it.status == DayStatus.Clickable }
                                 ?.also { day ->
-                                    clickedDay.value = day.apply { status = DayStatus.Clicked }
+                                    clickedDay.value = day.apply {
+                                        status = DayStatus.Clicked
+                                    }
                                 }
                             if (day().gap == -1) moveCalendar(-1)
                             else if (day().gap == 1) moveCalendar(+1)
@@ -404,7 +434,8 @@ class MoonCalendar(private var calendar: Calendar) {
         }
     }
 
-    private fun Modifier.myClickable(  // onClicked 함수 인자가 후에 바껴도 적용이 안됨... -> remeberUpdatedState로 해결
+    private fun Modifier.myClickable(
+        // onClicked 함수 인자가 후에 바껴도 적용이 안됨... -> remeberUpdatedState로 해결
         onClicked: () -> Unit
     ) = composed {
         val onClickState = rememberUpdatedState(onClicked)

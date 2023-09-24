@@ -16,18 +16,20 @@ fun Modifier.mySwiper(
     vState: MutableState<Float>,
     hState: MutableState<Float>,
     vAnchor: MutableState<List<Float>>,
+    width: MutableState<Float>,
     thresholds: Float
 ) = pointerInput(Unit) {
 
-        val anchor = vAnchor.value
-        val width = anchor[1]
-        var currentHState = 0
-        var currentVState = 1
+    val anchor = vAnchor.value
+    val width = width.value  // 값이 0이여서 divide by zero 오류가 뜰 때가 있음, 확인 요
+    var currentHState = 0
+    var currentVState = CalendarSize.MID
 
-        var hDist = 0f
-        var isDetected = false
-        var isVertical = false
-        var i = 0
+    var hDist = 0f
+    var isDetected = false
+    var isVertical = false
+    var i = 0
+    val minHeight = (anchor[0] * 0.8).toFloat()
 
     detectDragGestures (
         onDragStart = {
@@ -46,7 +48,7 @@ fun Modifier.mySwiper(
                 if (isVertical) {
                     var target = vState.value + offset.y
 
-                    if (target <= 300) target = 300f
+                    if (target <= minHeight) target = minHeight
                     else if (target >= anchor[2]) target = anchor[2]
 
                     vState.value = target
@@ -60,31 +62,43 @@ fun Modifier.mySwiper(
         onDragEnd = {
             if (isVertical) {
                 val currentY = vState.value
-
-                if (currentVState == 0) {
-                    if (currentY > anchor[1]) currentVState = 2
-                    else if (currentY > anchor[0]) currentVState = 1
-                } else if (currentVState == 1) {
-                    if (currentY < anchor[1]) currentVState = 0
-                    else if (currentY > anchor[1]) currentVState = 2
-                } else if (currentVState == 2) {
-                    if (currentY < anchor[1]) currentVState = 0
-                    else if (currentY < anchor[2]) currentVState = 1
+                currentVState = when (currentVState) {
+                    CalendarSize.SMALL -> {
+                        when {
+                            currentY > anchor[CalendarSize.MID.value] -> CalendarSize.LARGE
+                            currentY > anchor[CalendarSize.SMALL.value] -> CalendarSize.MID
+                            else -> currentVState
+                        }
+                    }
+                    CalendarSize.MID -> {
+                        when {
+                            currentY < anchor[CalendarSize.MID.value] -> CalendarSize.SMALL
+                            currentY > anchor[CalendarSize.MID.value] -> CalendarSize.LARGE
+                            else -> currentVState
+                        }
+                    }
+                    CalendarSize.LARGE -> {
+                        when {
+                            currentY < anchor[CalendarSize.MID.value] -> CalendarSize.SMALL
+                            currentY < anchor[CalendarSize.LARGE.value] -> CalendarSize.MID
+                            else -> currentVState
+                        }
+                    }
                 }
-
-                vState.value = anchor[currentVState]
+                vState.value = anchor[currentVState.value]
             } else {
                 val line = width * thresholds
-
-                if (hDist < -line) {
-                    hState.value = currentHState - width
-                } else if (hDist > line) {
-                    hState.value = currentHState + width
-                } else {
-                    hState.value = currentHState.toFloat()
+                hState.value = when {
+                    hDist < -line -> currentHState - width
+                    hDist > line -> currentHState + width
+                    else -> currentHState.toFloat()
                 }
             }
         }
     )
+}
+
+enum class CalendarSize(val value: Int) {
+    SMALL(0), MID(1), LARGE(2)
 }
 
